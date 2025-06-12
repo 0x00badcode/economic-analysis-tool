@@ -292,7 +292,7 @@ export function calculateRegressionEstimation(
   confidence: number;
   rSquared: number;
 } {
-  if (historicalData.length < 3) {
+  if (historicalData.length < 1) {
     return { estimatedCost: 0, estimatedDuration: 0, confidence: 0, rSquared: 0 };
   }
   
@@ -318,8 +318,10 @@ export function calculateRegressionEstimation(
   
   // Estimate based on closest historical project
   const similarities = historicalData.map(project => {
-    const locSim = 1 - Math.abs(project.linesOfCode - newProject.linesOfCode) / Math.max(project.linesOfCode, newProject.linesOfCode);
-    const teamSim = 1 - Math.abs(project.teamSize - newProject.teamSize) / Math.max(project.teamSize, newProject.teamSize);
+    const locSim = project.linesOfCode === 0 && newProject.linesOfCode === 0 ? 1 : 
+                   1 - Math.abs(project.linesOfCode - newProject.linesOfCode) / Math.max(project.linesOfCode, newProject.linesOfCode, 1);
+    const teamSim = project.teamSize === 0 && newProject.teamSize === 0 ? 1 :
+                    1 - Math.abs(project.teamSize - newProject.teamSize) / Math.max(project.teamSize, newProject.teamSize, 1);
     const complexitySim = 1 - Math.abs(project.complexity - newProject.complexity) / 5;
     return (locSim + teamSim + complexitySim) / 3;
   });
@@ -329,21 +331,23 @@ export function calculateRegressionEstimation(
   const baseDuration = historicalData[maxSimilarityIndex].actualDuration;
   
   // Adjust based on project differences
-  const locRatio = newProject.linesOfCode / historicalData[maxSimilarityIndex].linesOfCode;
-  const teamRatio = newProject.teamSize / historicalData[maxSimilarityIndex].teamSize;
-  const complexityRatio = newProject.complexity / historicalData[maxSimilarityIndex].complexity;
+  const baseProject = historicalData[maxSimilarityIndex];
+  const locRatio = baseProject.linesOfCode === 0 ? 1 : newProject.linesOfCode / baseProject.linesOfCode;
+  const teamRatio = baseProject.teamSize === 0 ? 1 : newProject.teamSize / baseProject.teamSize;
+  const complexityRatio = baseProject.complexity === 0 ? 1 : newProject.complexity / baseProject.complexity;
   
   const estimatedCost = baseCost * Math.pow(locRatio, 0.7) * Math.pow(teamRatio, 0.3) * Math.pow(complexityRatio, 0.2);
   const estimatedDuration = baseDuration * Math.pow(locRatio, 0.5) * Math.pow(complexityRatio, 0.3);
   
   // Calculate R-squared (simplified)
-  const rSquared = Math.max(Math.abs(correlationLOC), Math.abs(correlationTeam), Math.abs(correlationComplexity));
+  const correlations = [Math.abs(correlationLOC), Math.abs(correlationTeam), Math.abs(correlationComplexity)];
+  const rSquared = correlations.length > 0 ? Math.max(...correlations) : 0;
   
   return {
-    estimatedCost: Math.max(0, estimatedCost),
-    estimatedDuration: Math.max(0, estimatedDuration),
-    confidence: Math.max(...similarities),
-    rSquared
+    estimatedCost: Math.max(0, estimatedCost || 0),
+    estimatedDuration: Math.max(0, estimatedDuration || 0),
+    confidence: similarities.length > 0 ? Math.max(...similarities) : 0,
+    rSquared: Math.max(0, Math.min(1, rSquared || 0))
   };
 }
 

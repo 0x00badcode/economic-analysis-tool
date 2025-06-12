@@ -29,7 +29,8 @@ export default function CostEstimationForm({ onEstimationComplete }: CostEstimat
     { expertId: 'Expert 1', optimistic: 0, mostLikely: 0, pessimistic: 0, confidence: 0.8 }
   ]);
   const [historicalData, setHistoricalData] = useState<HistoricalProject[]>([
-    { linesOfCode: 10000, teamSize: 5, complexity: 3, actualCost: 150000, actualDuration: 6 }
+    { linesOfCode: 10000, teamSize: 5, complexity: 3, actualCost: 150000, actualDuration: 6 },
+    { linesOfCode: 20000, teamSize: 8, complexity: 4, actualCost: 280000, actualDuration: 10 }
   ]);
   const [newProject, setNewProject] = useState({
     linesOfCode: 15000,
@@ -72,6 +73,12 @@ export default function CostEstimationForm({ onEstimationComplete }: CostEstimat
     }]);
   };
 
+  const removeHistoricalProject = (index: number) => {
+    if (historicalData.length > 1) {
+      setHistoricalData(historicalData.filter((_, i) => i !== index));
+    }
+  };
+
   const updateHistoricalProject = (index: number, field: keyof HistoricalProject, value: number) => {
     const updated = [...historicalData];
     updated[index] = { ...updated[index], [field]: value };
@@ -97,6 +104,7 @@ export default function CostEstimationForm({ onEstimationComplete }: CostEstimat
       
       if (!response.ok) {
         setError(result.error || 'An error occurred during estimation');
+        setLoading(false);
         return;
       }
       
@@ -128,6 +136,7 @@ export default function CostEstimationForm({ onEstimationComplete }: CostEstimat
       
       if (!response.ok) {
         setError(result.error || 'An error occurred during estimation');
+        setLoading(false);
         return;
       }
       
@@ -334,11 +343,11 @@ export default function CostEstimationForm({ onEstimationComplete }: CostEstimat
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
                             <span className="text-gray-600">PERT Estimate:</span>
-                            <span className="font-medium ml-1">${expert.pertEstimate.toLocaleString()}</span>
+                            <span className="font-medium ml-1 text-gray-900">${expert.pertEstimate.toLocaleString()}</span>
                           </div>
                           <div>
                             <span className="text-gray-600">Range:</span>
-                            <span className="font-medium ml-1">${expert.range.toLocaleString()}</span>
+                            <span className="font-medium ml-1 text-gray-900">${expert.range.toLocaleString()}</span>
                           </div>
                         </div>
                       </div>
@@ -382,6 +391,17 @@ export default function CostEstimationForm({ onEstimationComplete }: CostEstimat
           
           {historicalData.map((project, index) => (
             <div key={index} className="border rounded-lg p-4 mb-4">
+              <div className="flex justify-between items-center mb-3">
+                <h5 className="font-medium text-gray-800">Historical Project {index + 1}</h5>
+                {historicalData.length > 1 && (
+                  <button
+                    onClick={() => removeHistoricalProject(index)}
+                    className="text-red-500 hover:text-red-700 p-1"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -498,12 +518,24 @@ export default function CostEstimationForm({ onEstimationComplete }: CostEstimat
           
           <button
             onClick={runRegressionEstimation}
-            disabled={loading}
+            disabled={loading || historicalData.length < 2}
             className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
             <Database className="h-4 w-4 mr-2" />
             {loading ? 'Calculating...' : 'Run Regression Analysis'}
           </button>
+
+          {/* Warning message when not enough historical data */}
+          {historicalData.length < 2 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
+              <div className="flex items-start">
+                <AlertCircle className="h-4 w-4 text-yellow-400 mt-0.5 mr-2 flex-shrink-0" />
+                <p className="text-sm text-yellow-700">
+                  At least 2 historical projects are required for regression analysis. Please add more historical data.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Error Display Card for Regression */}
           {error && (
