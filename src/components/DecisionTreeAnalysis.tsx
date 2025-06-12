@@ -74,7 +74,11 @@ export default function DecisionTreeAnalysis({ onAnalysisComplete }: DecisionTre
   });
 
   const [analysisResult, setAnalysisResult] = useState<any>(null);
-  const [aiAnalysisResult, setAiAnalysisResult] = useState<string>('');
+  const [aiAnalysisResult, setAiAnalysisResult] = useState<{
+    best_solution: string;
+    justification_key_points: string;
+    justification_long: string;
+  } | null>(null);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<'synthetic' | 'interactive'>('synthetic');
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -240,7 +244,11 @@ export default function DecisionTreeAnalysis({ onAnalysisComplete }: DecisionTre
 
   const runAIAnalysisWithSyntheticData = async (syntheticResult: any) => {
     if (!hasApiKey()) {
-      setAiAnalysisResult('AI analysis requires a Gemini API key. Please configure it in the settings (gear icon).');
+      setAiAnalysisResult({
+        best_solution: 'API Key Required',
+        justification_key_points: 'AI analysis requires a Gemini API key.',
+        justification_long: 'Please configure your Gemini API key in the settings (gear icon) to use AI analysis.',
+      });
       return;
     }
 
@@ -285,47 +293,17 @@ export default function DecisionTreeAnalysis({ onAnalysisComplete }: DecisionTre
       };
 
       const aiTool = new AITool();
-      const prompt = `Given the following JSON data representing an economic decision analysis with multiple options, outcomes, probabilities, costs, values, ROI, and risk profiles, analyze the options and determine which is the best decision strictly based on the numerical data. The synthetic analysis has already identified a recommended option. Justify your answer using expected value, ROI, success/failure rates, and risk level. Do not consider any external factors or subjective reasoning—base your conclusion solely on the numbers provided. Output the name of the best option and a brief numeric justification:
-
-${JSON.stringify(analysisData, null, 2)}`;
-
-      const result = await aiTool.generateContent({ input: prompt });
+      const result = await aiTool.generateDecisionAnalysis(analysisData);
       setAiAnalysisResult(result);
     } catch (error) {
       console.error('AI analysis failed:', error);
-      setAiAnalysisResult('AI analysis failed. Please check your API key configuration and try again.');
+      setAiAnalysisResult({
+        best_solution: 'Analysis Failed',
+        justification_key_points: 'AI analysis encountered an error.',
+        justification_long: 'The AI analysis could not be completed. Please check your API key configuration and try again.',
+      });
     }
     setAiLoading(false);
-  };
-
-  const formatAIAnalysis = (text: string): string => {
-    if (!text) return '';
-    
-    return text
-      // Convert **text** to <strong>text</strong>
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      // Convert *text* to <em>text</em>
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      // Convert line breaks to proper spacing
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/\n/g, '<br>')
-      // Wrap in paragraphs
-      .replace(/^/, '<p>')
-      .replace(/$/, '</p>')
-      // Fix empty paragraphs
-      .replace(/<p><\/p>/g, '')
-      // Convert bullet points (- text) to proper list items
-      .replace(/<p>- (.*?)<\/p>/g, '<li>$1</li>')
-      // Wrap consecutive list items in <ul>
-      .replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>')
-      // Fix nested ul tags
-      .replace(/<\/ul><ul>/g, '')
-      // Convert numbered lists (1. text) to ordered lists
-      .replace(/<p>\d+\.\s+(.*?)<\/p>/g, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>)(?=<p>\d+\.)/g, '<ol>$1</ol>')
-      // Clean up extra spaces and tags
-      .replace(/\s+/g, ' ')
-      .trim();
   };
 
   const renderDecisionOption = (option: DecisionNode) => {
@@ -932,20 +910,31 @@ ${JSON.stringify(analysisData, null, 2)}`;
                   <Brain className="h-6 w-6 text-purple-600 mr-3" />
                   <h4 className="text-lg font-semibold text-purple-900">AI-Powered Analysis</h4>
                 </div>
-                <div className="bg-white rounded-lg p-6 border border-purple-200">
-                  <div 
-                    className="prose prose-sm max-w-none text-gray-800 leading-relaxed"
-                    style={{
-                      fontSize: '14px',
-                      lineHeight: '1.6'
-                    }}
-                    dangerouslySetInnerHTML={{ 
-                      __html: formatAIAnalysis(aiAnalysisResult) 
-                    }}
-                  />
+                
+                {/* Best Solution Card */}
+                <div className="bg-white rounded-lg p-6 border border-purple-200 mb-4">
+                  <div className="flex items-center mb-3">
+                    <TrendingUp className="h-5 w-5 text-purple-600 mr-2" />
+                    <h5 className="text-lg font-semibold text-purple-900">Recommended Solution</h5>
+                  </div>
+                  <div className="text-2xl font-bold text-purple-800 mb-2">
+                    {aiAnalysisResult.best_solution}
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">
+                    {aiAnalysisResult.justification_key_points}
+                  </p>
                 </div>
+
+                {/* Detailed Analysis */}
+                <div className="bg-white rounded-lg p-6 border border-purple-200">
+                  <h5 className="text-lg font-semibold text-purple-900 mb-3">Detailed Analysis</h5>
+                  <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                    {aiAnalysisResult.justification_long}
+                  </div>
+                </div>
+
                 <div className="mt-4 text-xs text-purple-600">
-                  <p>✨ This analysis was generated using AI based on the numerical data from your decision tree.</p>
+                  <p>✨ This analysis was generated using AI with structured output based on the numerical data from your decision tree.</p>
                 </div>
               </div>
             </div>

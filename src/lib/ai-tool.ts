@@ -1,9 +1,10 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 
 export interface AIToolConfig {
   apiKey?: string;
   model?: string;
   responseMimeType?: string;
+  useStructuredOutput?: boolean;
 }
 
 export interface AIToolOptions {
@@ -32,8 +33,9 @@ export class AITool {
 
     this.defaultConfig = {
       apiKey,
-      model: config?.model || 'gemma-3-27b-it',
-      responseMimeType: config?.responseMimeType || 'text/plain',
+      model: config?.model || 'gemini-2.0-flash',
+      responseMimeType: config?.responseMimeType || 'application/json',
+      useStructuredOutput: config?.useStructuredOutput ?? true,
     };
   }
 
@@ -124,6 +126,84 @@ export class AITool {
     }
     
     return fullResponse;
+  }
+
+  /**
+   * Generate structured decision analysis using the AI model with JSON schema
+   */
+  async generateDecisionAnalysis(analysisData: any): Promise<{
+    best_solution: string;
+    justification_key_points: string;
+    justification_long: string;
+  }> {
+    const modelConfig = {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          best_solution: {
+            type: Type.STRING,
+          },
+          justification_key_points: {
+            type: Type.STRING,
+          },
+          justification_long: {
+            type: Type.STRING,
+          },
+        },
+      },
+      systemInstruction: [
+        {
+          text: `You are a financial decision analysis engine. You will be provided with structured JSON data representing multiple economic decision options. Each option includes numeric attributes such as expected value, return on investment (ROI), average cost and value, success and failure probabilities, and risk level. Your task is to evaluate these options and determine the best decision strictly based on this numerical data.
+
+You must output your analysis using the following enforced JSON schema:
+Guidelines for each field:
+
+* **best_solution**: Write the exact name of the decision option (as given in the input) that is numerically the best based on overall expected value. If there is a tie, choose the one with better ROI or lower risk.
+
+* **justification_key_points**: Summarize in 1–2 sentences the key numeric reasons why this option is best (e.g., highest expected value, superior ROI, lower failure rate). Only include numbers, percentages, or comparisons.
+
+* **justification_long**: Provide a detailed, objective numeric analysis comparing all options. Use expected value as the primary factor. Discuss secondary factors such as ROI, risk level, success/failure rates, and cost/value ratios. Do not mention any non-numerical criteria (e.g., feasibility, strategy, market conditions). Only use data from the input.
+
+Never speculate or include qualitative reasoning. Output must strictly reflect the numeric superiority of one option over others.`,
+        }
+      ],
+    };
+
+    const model = this.defaultConfig.model;
+    
+    const contents = [
+      {
+        role: 'user' as const,
+        parts: [
+          {
+            text: JSON.stringify(analysisData, null, 2),
+          },
+        ],
+      },
+    ];
+
+    const response = await this.ai.models.generateContent({
+      model,
+      config: modelConfig,
+      contents,
+    });
+
+    try {
+      const result = JSON.parse(response.text || '{}');
+      return {
+        best_solution: result.best_solution || '',
+        justification_key_points: result.justification_key_points || '',
+        justification_long: result.justification_long || '',
+      };
+    } catch (error) {
+      console.error('Failed to parse AI response:', error);
+      return {
+        best_solution: 'Unable to determine',
+        justification_key_points: 'AI analysis failed to provide structured output.',
+        justification_long: 'The AI analysis could not be completed due to a parsing error.',
+      };
+    }
   }
 }
 
