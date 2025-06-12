@@ -129,13 +129,24 @@ export default function DecisionTreeAnalysis({ onAnalysisComplete }: DecisionTre
       }
     };
 
+    const getNodeBadgeColor = (type: string) => {
+      switch (type) {
+        case 'decision': return 'bg-blue-100 text-blue-800 border border-blue-200';
+        case 'chance': return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+        case 'outcome': return 'bg-green-100 text-green-800 border border-green-200';
+        default: return 'bg-gray-100 text-gray-800 border border-gray-200';
+      }
+    };
+
     return (
       <div key={node.id} className={`ml-${depth * 8}`}>
         <div className={`border-2 rounded-lg p-4 mb-4 ${getNodeColor(node.type)}`}>
           <div className="flex items-center mb-2">
-            {getNodeIcon(node.type)}
-            <span className="ml-2 font-medium text-gray-900">{node.name}</span>
-            <span className="ml-2 text-xs px-2 py-1 bg-gray-200 rounded">{node.type}</span>
+            <div className={`p-1 rounded ${getNodeBadgeColor(node.type)}`}>
+              {getNodeIcon(node.type)}
+            </div>
+            <span className="ml-3 font-medium text-gray-900">{node.name}</span>
+            <span className={`ml-2 text-xs px-2 py-1 rounded font-medium ${getNodeBadgeColor(node.type)}`}>{node.type}</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
