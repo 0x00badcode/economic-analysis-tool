@@ -17,10 +17,13 @@ export class AITool {
   private defaultConfig: Required<AIToolConfig>;
 
   constructor(config?: AIToolConfig) {
-    const apiKey = config?.apiKey || process.env.GEMINI_API_KEY;
+    // Try to get API key from config, environment, or localStorage
+    const apiKey = config?.apiKey || 
+                   process.env.GEMINI_API_KEY || 
+                   (typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null);
     
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is required. Please set it in your environment variables or pass it in the config.');
+      throw new Error('GEMINI_API_KEY is required. Please set it in your environment variables, pass it in the config, or configure it in the app settings.');
     }
 
     this.ai = new GoogleGenAI({
@@ -147,4 +150,28 @@ export function getDefaultAITool(config?: AIToolConfig): AITool {
     defaultAITool = new AITool(config);
   }
   return defaultAITool;
+}
+
+// Utility functions for API key management
+export function getApiKeyFromStorage(): string | null {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('gemini_api_key');
+  }
+  return null;
+}
+
+export function setApiKeyInStorage(apiKey: string): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('gemini_api_key', apiKey);
+  }
+}
+
+export function removeApiKeyFromStorage(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('gemini_api_key');
+  }
+}
+
+export function hasApiKey(): boolean {
+  return !!(process.env.GEMINI_API_KEY || getApiKeyFromStorage());
 }

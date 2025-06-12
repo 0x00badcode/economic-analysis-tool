@@ -7,6 +7,8 @@ import ProjectList from '@/components/ProjectList';
 import CostEstimationForm from '@/components/CostEstimationForm';
 import DecisionTreeAnalysis from '@/components/DecisionTreeAnalysis';
 import ResourceAllocation from '@/components/ResourceAllocation';
+import ApiKeySettings from '@/components/ApiKeySettings';
+import ApiKeyIndicator from '@/components/ApiKeyIndicator';
 import { 
   Calculator, 
   GitBranch, 
@@ -14,12 +16,14 @@ import {
   BarChart3, 
   Home, 
   FolderPlus,
-  Database 
+  Database,
+  Settings 
 } from 'lucide-react';
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'projects' | 'create' | 'cost-estimation' | 'decision-tree' | 'resource-allocation'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleEstimationComplete = (results: any) => {
     console.log('Cost Estimation Results:', results);
@@ -63,6 +67,16 @@ export default function HomePage() {
                 <h1 className="text-2xl font-bold text-gray-900">Economic Analysis Tool</h1>
                 <p className="text-sm text-gray-600">Software Project Decision-Making Platform</p>
               </div>
+            </div>
+            <div className="flex items-center">
+              <ApiKeyIndicator />
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                title="API Settings"
+              >
+                <Settings className="h-5 w-5" />
+              </button>
             </div>
           </div>
         </div>
@@ -200,6 +214,12 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* API Key Settings Modal */}
+      <ApiKeySettings 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
     </div>
   );
 }
