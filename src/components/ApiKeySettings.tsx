@@ -68,7 +68,7 @@ export default function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps)
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="Enter your Gemini API key"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 placeholder-gray-400 text-gray-900"
               />
               <button
                 type="button"
