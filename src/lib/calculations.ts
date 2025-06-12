@@ -385,6 +385,11 @@ export interface DecisionAnalysisResult {
   expectedValue: number;
   bestPath: string[];
   sensitivityAnalysis: Record<string, number>;
+  riskAnalysis?: {
+    bestOption: string;
+    riskLevel: string;
+    reasoning: string[];
+  };
 }
 
 export function analyzeDecisionTree(rootNode: DecisionNode): DecisionAnalysisResult {
@@ -410,37 +415,132 @@ export function analyzeDecisionTree(rootNode: DecisionNode): DecisionAnalysisRes
     
     return 0;
   };
-  
-  const findBestPath = (node: DecisionNode, currentPath: string[] = []): string[] => {
+
+  const calculateRiskMetrics = (node: DecisionNode) => {
+    if (!node.children) return null;
+    
+    const successOutcome = node.children.find(child => 
+      child.name.toLowerCase().includes('success'));
+    const failureOutcome = node.children.find(child => 
+      child.name.toLowerCase().includes('failure'));
+    
+    if (!successOutcome || !failureOutcome) return null;
+    
+    const successProbability = successOutcome.probability || 0;
+    const failureProbability = failureOutcome.probability || 0;
+    const avgCost = successProbability * (successOutcome.cost || 0) + 
+                   failureProbability * (failureOutcome.cost || 0);
+    const avgValue = successProbability * (successOutcome.value || 0) + 
+                     failureProbability * (failureOutcome.value || 0);
+    const roi = avgCost > 0 ? ((avgValue - avgCost) / avgCost * 100) : 0;
+    const worstCase = Math.min(
+      (successOutcome.value || 0) - (successOutcome.cost || 0),
+      (failureOutcome.value || 0) - (failureOutcome.cost || 0)
+    );
+    
+    return {
+      successProbability,
+      failureProbability,
+      roi,
+      avgCost,
+      worstCase,
+      riskLevel: failureProbability > 0.3 ? 'High' : failureProbability > 0.15 ? 'Medium' : 'Low'
+    };
+  };
+
+  const findBestPathWithRiskAnalysis = (node: DecisionNode, currentPath: string[] = []): { path: string[], riskAnalysis?: any } => {
     const newPath = [...currentPath, node.name];
     
     if (node.type === 'outcome' || !node.children || node.children.length === 0) {
-      return newPath;
+      return { path: newPath };
     }
     
     if (node.type === 'decision') {
-      const childValues = node.children.map(child => ({
-        value: calculateExpectedValue(child),
-        path: findBestPath(child, newPath)
+      const childAnalysis = node.children.map(child => ({
+        name: child.name,
+        expectedValue: calculateExpectedValue(child),
+        riskMetrics: calculateRiskMetrics(child),
+        path: findBestPathWithRiskAnalysis(child, newPath)
       }));
       
-      const bestChild = childValues.reduce((best, current) => 
-        current.value > best.value ? current : best);
+      // Sort by expected value first
+      childAnalysis.sort((a, b) => b.expectedValue - a.expectedValue);
       
-      return bestChild.path;
+      // Check if top options have similar expected values (within 5%)
+      const topOption = childAnalysis[0];
+      const secondOption = childAnalysis[1];
+      const valueDifference = Math.abs(topOption.expectedValue - secondOption.expectedValue);
+      const averageValue = (topOption.expectedValue + secondOption.expectedValue) / 2;
+      const percentageDifference = averageValue > 0 ? (valueDifference / averageValue) * 100 : 0;
+      
+      let bestOption = topOption;
+      let reasoning: string[] = [];
+      
+      if (percentageDifference < 5 && topOption.riskMetrics && secondOption.riskMetrics) {
+        // Expected values are similar, consider other factors
+        reasoning.push(`Expected values are very close (${topOption.expectedValue.toFixed(0)} vs ${secondOption.expectedValue.toFixed(0)})`);
+        
+        // Factor in risk, ROI, and success probability
+        const riskScore = (option: any) => {
+          let score = 0;
+          // Higher success probability is better
+          score += option.riskMetrics.successProbability * 30;
+          // Lower risk is generally better
+          score += option.riskMetrics.riskLevel === 'Low' ? 25 : 
+                   option.riskMetrics.riskLevel === 'Medium' ? 15 : 5;
+          // Better ROI is preferred (capped to prevent extreme values from dominating)
+          score += Math.min(option.riskMetrics.roi / 10, 20);
+          // Less worst-case loss is better
+          score += Math.max(0, option.riskMetrics.worstCase / 10000);
+          return score;
+        };
+        
+        const topScore = riskScore(topOption);
+        const secondScore = riskScore(secondOption);
+        
+        if (secondScore > topScore) {
+          bestOption = secondOption;
+          reasoning.push(`${secondOption.name} offers better risk-adjusted returns`);
+          reasoning.push(`Higher success probability: ${(secondOption.riskMetrics.successProbability * 100).toFixed(0)}% vs ${(topOption.riskMetrics.successProbability * 100).toFixed(0)}%`);
+          
+          if (secondOption.riskMetrics.roi > topOption.riskMetrics.roi * 1.5) {
+            reasoning.push(`Significantly better ROI: ${secondOption.riskMetrics.roi.toFixed(1)}% vs ${topOption.riskMetrics.roi.toFixed(1)}%`);
+          }
+          
+          if (secondOption.riskMetrics.riskLevel !== topOption.riskMetrics.riskLevel) {
+            reasoning.push(`Lower risk profile: ${secondOption.riskMetrics.riskLevel} vs ${topOption.riskMetrics.riskLevel}`);
+          }
+        } else {
+          reasoning.push(`${topOption.name} provides the best balance of return and risk`);
+        }
+      } else {
+        reasoning.push(`Clear expected value advantage: ${topOption.expectedValue.toFixed(0)}`);
+      }
+      
+      const result = bestOption.path;
+      const riskAnalysis = {
+        bestOption: bestOption.name,
+        riskLevel: bestOption.riskMetrics?.riskLevel || 'Unknown',
+        reasoning
+      };
+      
+      return { path: result.path, riskAnalysis };
     }
     
     // For chance nodes, follow the most likely path
     const mostLikelyChild = node.children.reduce((best, current) => 
       (current.probability || 0) > (best.probability || 0) ? current : best);
     
-    return findBestPath(mostLikelyChild, newPath);
+    return findBestPathWithRiskAnalysis(mostLikelyChild, newPath);
   };
+  
+  const analysis = findBestPathWithRiskAnalysis(rootNode);
   
   return {
     expectedValue: calculateExpectedValue(rootNode),
-    bestPath: findBestPath(rootNode),
-    sensitivityAnalysis: {} // Simplified for this implementation
+    bestPath: analysis.path,
+    sensitivityAnalysis: {}, // Simplified for this implementation
+    riskAnalysis: analysis.riskAnalysis
   };
 }
 
