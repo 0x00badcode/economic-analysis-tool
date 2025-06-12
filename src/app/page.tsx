@@ -1,103 +1,205 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+import Dashboard from '@/components/Dashboard';
+import ProjectForm from '@/components/ProjectForm';
+import ProjectList from '@/components/ProjectList';
+import CostEstimationForm from '@/components/CostEstimationForm';
+import DecisionTreeAnalysis from '@/components/DecisionTreeAnalysis';
+import ResourceAllocation from '@/components/ResourceAllocation';
+import { 
+  Calculator, 
+  GitBranch, 
+  Users, 
+  BarChart3, 
+  Home, 
+  FolderPlus,
+  Database 
+} from 'lucide-react';
+
+export default function HomePage() {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'projects' | 'create' | 'cost-estimation' | 'decision-tree' | 'resource-allocation'>('dashboard');
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+
+  const handleEstimationComplete = (results: any) => {
+    console.log('Cost Estimation Results:', results);
+  };
+
+  const handleAnalysisComplete = (results: any) => {
+    console.log('Decision Tree Analysis Results:', results);
+  };
+
+  const handleOptimizationComplete = (results: any) => {
+    console.log('Resource Optimization Results:', results);
+  };
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard selectedProject={selectedProject} />;
+             case 'projects':
+         return <ProjectList onSelectProject={setSelectedProject} selectedProject={selectedProject} />;
+       case 'create':
+         return <ProjectForm onProjectCreated={() => setActiveTab('projects')} />;
+      case 'cost-estimation':
+        return <CostEstimationForm onEstimationComplete={handleEstimationComplete} />;
+      case 'decision-tree':
+        return <DecisionTreeAnalysis onAnalysisComplete={handleAnalysisComplete} />;
+      case 'resource-allocation':
+        return <ResourceAllocation onOptimizationComplete={handleOptimizationComplete} />;
+      default:
+        return <Dashboard selectedProject={selectedProject} />;
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center">
+              <Calculator className="h-8 w-8 text-blue-600 mr-3" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Economic Analysis Tool</h1>
+                <p className="text-sm text-gray-600">Software Project Decision-Making Platform</p>
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Navigation Sidebar */}
+          <div className="lg:w-64 flex-shrink-0">
+            <nav className="bg-white rounded-lg shadow p-4">
+              <div className="space-y-2">
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === 'dashboard'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  <Home className="h-4 w-4 mr-3" />
+                  Dashboard
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('projects')}
+                  className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === 'projects'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  <Database className="h-4 w-4 mr-3" />
+                  Projects
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('create')}
+                  className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === 'create'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  <FolderPlus className="h-4 w-4 mr-3" />
+                  Create Project
+                </button>
+
+                <div className="pt-4 border-t border-gray-200">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Analysis Tools
+                  </p>
+                  
+                  <button
+                    onClick={() => setActiveTab('cost-estimation')}
+                    className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      activeTab === 'cost-estimation'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <Calculator className="h-4 w-4 mr-3" />
+                    Cost Estimation
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('decision-tree')}
+                    className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      activeTab === 'decision-tree'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <GitBranch className="h-4 w-4 mr-3" />
+                    Decision Trees
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('resource-allocation')}
+                    className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      activeTab === 'resource-allocation'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <Users className="h-4 w-4 mr-3" />
+                    Resource Allocation
+                  </button>
+                </div>
+              </div>
+            </nav>
+
+            {/* Feature Summary */}
+            <div className="mt-6 bg-white rounded-lg shadow p-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Available Features</h3>
+              <div className="space-y-2 text-xs text-gray-600">
+                <div className="flex items-center">
+                  <div className="h-2 w-2 bg-green-500 rounded-full mr-2"></div>
+                  COCOMO & Function Points
+                </div>
+                <div className="flex items-center">
+                  <div className="h-2 w-2 bg-green-500 rounded-full mr-2"></div>
+                  Delphi Method & Regression
+                </div>
+                <div className="flex items-center">
+                  <div className="h-2 w-2 bg-green-500 rounded-full mr-2"></div>
+                  ROI, NPV, IRR, Payback
+                </div>
+                <div className="flex items-center">
+                  <div className="h-2 w-2 bg-green-500 rounded-full mr-2"></div>
+                  Monte Carlo Simulation
+                </div>
+                <div className="flex items-center">
+                  <div className="h-2 w-2 bg-green-500 rounded-full mr-2"></div>
+                  Sensitivity Analysis
+                </div>
+                <div className="flex items-center">
+                  <div className="h-2 w-2 bg-green-500 rounded-full mr-2"></div>
+                  Decision Tree Analysis
+                </div>
+                <div className="flex items-center">
+                  <div className="h-2 w-2 bg-green-500 rounded-full mr-2"></div>
+                  Resource Optimization
+                </div>
+                <div className="flex items-center">
+                  <div className="h-2 w-2 bg-green-500 rounded-full mr-2"></div>
+                  Scenario Planning
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1">
+            {renderContent()}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
