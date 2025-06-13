@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { GitBranch, Target, Zap, Calculator } from 'lucide-react';
+import { GitBranch, Target, Zap, Calculator, Brain, TrendingUp } from 'lucide-react';
+import { AITool, hasApiKey } from '@/lib/ai-tool';
 
 interface DecisionNode {
   id: string;
@@ -73,7 +74,14 @@ export default function DecisionTreeAnalysis({ onAnalysisComplete }: DecisionTre
   });
 
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [aiAnalysisResult, setAiAnalysisResult] = useState<{
+    best_solution: string;
+    justification_key_points: string;
+    justification_long: string;
+  } | null>(null);
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState<'synthetic' | 'interactive'>('synthetic');
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const validateDecisionTree = (): boolean => {
@@ -225,13 +233,80 @@ export default function DecisionTreeAnalysis({ onAnalysisComplete }: DecisionTre
       const result = await response.json();
       setAnalysisResult(result);
       onAnalysisComplete(result);
+
+      // Automatically run AI analysis with synthetic results
+      await runAIAnalysisWithSyntheticData(result);
     } catch (error) {
       console.error('Decision tree analysis failed:', error);
     }
     setLoading(false);
   };
 
-  const renderDecisionOption = (option: DecisionNode): React.ReactElement => {
+  const runAIAnalysisWithSyntheticData = async (syntheticResult: any) => {
+    if (!hasApiKey()) {
+      setAiAnalysisResult({
+        best_solution: 'API Key Required',
+        justification_key_points: 'AI analysis requires a Gemini API key.',
+        justification_long: 'Please configure your Gemini API key in the settings (gear icon) to use AI analysis.',
+      });
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      // Prepare enhanced data for AI analysis using synthetic results
+      const analysisData = {
+        decision: decisionTree.name,
+        syntheticAnalysisResults: {
+          bestOption: syntheticResult.riskAnalysis?.bestOption || syntheticResult.bestPath[1],
+          expectedValue: syntheticResult.expectedValue,
+          optimalPath: syntheticResult.bestPath,
+          riskLevel: syntheticResult.expectedValue > 200000 ? 'Low' : syntheticResult.expectedValue > 100000 ? 'Medium' : 'High'
+        },
+        options: decisionTree.children?.map(option => {
+          const expectedValue = option.children?.reduce((sum, child) => 
+            sum + (child.probability || 0) * ((child.value || 0) - (child.cost || 0)), 0) || 0;
+          
+          const successRate = option.children?.reduce((sum, child) => 
+            sum + (child.name.toLowerCase().includes('success') ? (child.probability || 0) : 0), 0) || 0;
+          
+          const totalCost = option.children?.reduce((sum, child) => sum + (child.cost || 0), 0) || 0;
+          const totalValue = option.children?.reduce((sum, child) => sum + (child.value || 0), 0) || 0;
+          const roi = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
+
+          return {
+            name: option.name,
+            expectedValue,
+            successRate: successRate * 100,
+            roi,
+            riskLevel: expectedValue > 200000 ? 'Low' : expectedValue > 100000 ? 'Medium' : 'High',
+            isRecommended: (syntheticResult.riskAnalysis?.bestOption || syntheticResult.bestPath[1])?.includes(option.name),
+            outcomes: option.children?.map(outcome => ({
+              name: outcome.name,
+              probability: (outcome.probability || 0) * 100,
+              cost: outcome.cost || 0,
+              value: outcome.value || 0,
+              netValue: (outcome.value || 0) - (outcome.cost || 0)
+            })) || []
+          };
+        }) || []
+      };
+
+      const aiTool = new AITool();
+      const result = await aiTool.generateDecisionAnalysis(analysisData);
+      setAiAnalysisResult(result);
+    } catch (error) {
+      console.error('AI analysis failed:', error);
+      setAiAnalysisResult({
+        best_solution: 'Analysis Failed',
+        justification_key_points: 'AI analysis encountered an error.',
+        justification_long: 'The AI analysis could not be completed. Please check your API key configuration and try again.',
+      });
+    }
+    setAiLoading(false);
+  };
+
+  const renderDecisionOption = (option: DecisionNode) => {
     const calculateExpectedValue = (node: DecisionNode): number => {
       if (!node.children) return 0;
       return node.children.reduce((sum, child) => 
@@ -434,7 +509,7 @@ export default function DecisionTreeAnalysis({ onAnalysisComplete }: DecisionTre
             }`}
           >
             <Calculator className="h-4 w-4 mr-2" />
-            {loading ? 'Analyzing...' : 'Analyze Decision Tree'}
+            {loading ? 'Analyzing...' : 'Analyze'}
           </button>
         </div>
 
@@ -480,12 +555,43 @@ export default function DecisionTreeAnalysis({ onAnalysisComplete }: DecisionTre
         </div>
       </div>
 
-      {analysisResult && (
+      {(analysisResult || aiAnalysisResult) && (
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Analysis Results</h3>
           
-          {/* Key Metrics Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Tab Navigation */}
+          <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveAnalysisTab('synthetic')}
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
+                activeAnalysisTab === 'synthetic'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              disabled={!analysisResult}
+            >
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Synthetic Analysis
+            </button>
+            <button
+              onClick={() => setActiveAnalysisTab('interactive')}
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
+                activeAnalysisTab === 'interactive'
+                  ? 'bg-white text-purple-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              disabled={!aiAnalysisResult}
+            >
+              <Brain className="h-4 w-4 mr-2" />
+              AI Analysis
+            </button>
+          </div>
+
+          {/* Synthetic Analysis Results */}
+          {activeAnalysisTab === 'synthetic' && analysisResult && (
+            <div>
+              {/* Key Metrics Row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-green-50 border border-green-200 rounded-lg p-6">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-md font-semibold text-green-900">Expected Value</h4>
@@ -793,8 +899,48 @@ export default function DecisionTreeAnalysis({ onAnalysisComplete }: DecisionTre
               </div>
             </div>
           </div>
+            </div>
+          )}
+
+          {/* AI Analysis Results */}
+          {activeAnalysisTab === 'interactive' && aiAnalysisResult && (
+            <div className="space-y-6">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+                <div className="flex items-center mb-4">
+                  <Brain className="h-6 w-6 text-purple-600 mr-3" />
+                  <h4 className="text-lg font-semibold text-purple-900">AI-Powered Analysis</h4>
+                </div>
+                
+                {/* Best Solution Card */}
+                <div className="bg-white rounded-lg p-6 border border-purple-200 mb-4">
+                  <div className="flex items-center mb-3">
+                    <TrendingUp className="h-5 w-5 text-purple-600 mr-2" />
+                    <h5 className="text-lg font-semibold text-purple-900">Recommended Solution</h5>
+                  </div>
+                  <div className="text-2xl font-bold text-purple-800 mb-2">
+                    {aiAnalysisResult.best_solution}
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">
+                    {aiAnalysisResult.justification_key_points}
+                  </p>
+                </div>
+
+                {/* Detailed Analysis */}
+                <div className="bg-white rounded-lg p-6 border border-purple-200">
+                  <h5 className="text-lg font-semibold text-purple-900 mb-3">Detailed Analysis</h5>
+                  <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                    {aiAnalysisResult.justification_long}
+                  </div>
+                </div>
+
+                <div className="mt-4 text-xs text-purple-600">
+                  <p>✨ This analysis was generated using AI with structured output based on the numerical data from your decision tree.</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
-} 
+}
